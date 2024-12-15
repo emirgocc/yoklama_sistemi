@@ -39,6 +39,7 @@ const StudentPanel = ({ user, onLogout }) => {
   const [showPopup, setShowPopup] = useState(false);
   const [isSmsVerified, setIsSmsVerified] = useState(false);
   const [isFaceVerified, setIsFaceVerified] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(null);
 
   useEffect(() => {
     const courses = JSON.parse(localStorage.getItem("activeAttendance")) || [];
@@ -55,16 +56,23 @@ const StudentPanel = ({ user, onLogout }) => {
     setSelectedCourse(course);
     setIsAuthenticated(false);
     setShowPopup(true);
+    setAlertMessage(null); // Önceki alert'i temizle
   };
 
   const handleSmsVerification = () => {
-    alert("SMS doğrulaması başarıyla tamamlandı.");
     setIsSmsVerified(true);
+    setAlertMessage({
+      severity: "success",
+      text: "SMS doğrulaması başarıyla tamamlandı.",
+    });
   };
 
   const handleFaceVerification = () => {
-    alert("Yüz tanıma doğrulaması başarıyla tamamlandı.");
     setIsFaceVerified(true);
+    setAlertMessage({
+      severity: "success",
+      text: "Yüz tanıma doğrulaması başarıyla tamamlandı.",
+    });
   };
 
   const handleAuthentication = () => {
@@ -82,8 +90,15 @@ const StudentPanel = ({ user, onLogout }) => {
         JSON.stringify({ username: user.username, selectedCourse })
       );
       setShowPopup(false);
+      setAlertMessage({
+        severity: "info",
+        text: `${selectedCourse} dersine başarıyla giriş yaptınız.`,
+      });
     } else {
-      alert("Lütfen tüm doğrulamaları tamamlayın.");
+      setAlertMessage({
+        severity: "warning",
+        text: "Lütfen tüm doğrulamaları tamamlayın.",
+      });
     }
   };
 
@@ -91,23 +106,26 @@ const StudentPanel = ({ user, onLogout }) => {
     setShowPopup(false);
     setIsSmsVerified(false);
     setIsFaceVerified(false);
+    setAlertMessage(null); // Popup kapatıldığında alert temizlensin
+  };
+
+  const clearAlert = () => {
+    setAlertMessage(null);
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Container maxWidth="sm" sx={{ mt: 10 }}>
-        {/* Logo Ekleme */}
+        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <img
-            src="/logo.png" // Logo dosyasının yolu
+            src="/logo.png"
             alt="Üniversite Logosu"
-            style={{
-              maxWidth: "100px", // Logonun boyutu
-              marginBottom: "10px", // Logo ile diğer içerik arasındaki boşluk
-            }}
+            style={{ maxWidth: "100px", marginBottom: "10px" }}
           />
         </div>
+        {/* Panel */}
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
           <Typography
             variant="h5"
@@ -118,11 +136,7 @@ const StudentPanel = ({ user, onLogout }) => {
           >
             e-Yoklama
           </Typography>
-          <Typography
-            variant="body1"
-            align="center"
-            sx={{ color: "secondary.main", mb: 3 }}
-          >
+          <Typography variant="body1" align="center" sx={{ color: "secondary.main", mb: 3 }}>
             Merhaba, {user.username}
           </Typography>
           <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
@@ -211,6 +225,33 @@ const StudentPanel = ({ user, onLogout }) => {
           )}
         </Paper>
       </Modal>
+
+      {/* Alert Mesajları */}
+      {alertMessage && (
+  <Box
+    sx={{
+      position: "fixed",
+      bottom: 20,
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "90%",
+      maxWidth: "600px",
+      zIndex: 1301, // MUI Modal'ın z-index'i 1300'dür, bunu geçiyoruz.
+    }}
+  >
+    <Alert
+      variant="outlined"
+      severity={alertMessage.severity}
+      onClose={clearAlert}
+      sx={{
+        backgroundColor: "white", // Alert'in arka planını temiz tutar
+      }}
+    >
+      {alertMessage.text}
+    </Alert>
+  </Box>
+)}
+
     </ThemeProvider>
   );
 };

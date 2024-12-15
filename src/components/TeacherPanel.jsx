@@ -16,6 +16,7 @@ import {
   MenuItem,
   createTheme,
   ThemeProvider,
+  Alert,
 } from "@mui/material";
 
 const theme = createTheme({
@@ -40,6 +41,7 @@ const TeacherPanel = ({ user, onLogout }) => {
   const [attendanceStarted, setAttendanceStarted] = useState(false);
   const [attendanceList, setAttendanceList] = useState([]);
   const [openModal, setOpenModal] = useState(false);
+  const [alertMessage, setAlertMessage] = useState(null);
 
   const courses = [
     { id: 1, name: "BIL4104 - Yazılım Mühendisliği" },
@@ -64,19 +66,25 @@ const TeacherPanel = ({ user, onLogout }) => {
 
   const startOrEndAttendance = () => {
     if (!selectedCourse) {
-      alert("Lütfen bir ders seçin.");
+      setAlertMessage({ severity: "warning", text: "Lütfen bir ders seçin." });
       return;
     }
 
     if (attendanceStarted) {
-      alert(`${selectedCourse} için yoklama bitirildi.`);
+      setAlertMessage({
+        severity: "info",
+        text: `${selectedCourse} için yoklama bitirildi.`,
+      });
       localStorage.removeItem("selectedCourse");
       localStorage.removeItem("attendanceStarted");
       setAttendanceStarted(false);
       return;
     }
 
-    alert(`${selectedCourse} için yoklama başlatıldı.`);
+    setAlertMessage({
+      severity: "success",
+      text: `${selectedCourse} için yoklama başlatıldı.`,
+    });
     localStorage.setItem("selectedCourse", selectedCourse);
     localStorage.setItem("attendanceStarted", "true");
     setAttendanceStarted(true);
@@ -89,6 +97,10 @@ const TeacherPanel = ({ user, onLogout }) => {
 
   const handleCloseModal = () => {
     setOpenModal(false);
+  };
+
+  const clearAlert = () => {
+    setAlertMessage(null);
   };
 
   return (
@@ -212,6 +224,28 @@ const TeacherPanel = ({ user, onLogout }) => {
           </Paper>
         </Modal>
       </Container>
+
+      {/* Alert Mesajları */}
+      {alertMessage && (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 20,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "90%",
+            maxWidth: "600px",
+          }}
+        >
+          <Alert
+            variant="outlined"
+            severity={alertMessage.severity}
+            onClose={clearAlert}
+          >
+            {alertMessage.text}
+          </Alert>
+        </Box>
+      )}
     </ThemeProvider>
   );
 };
