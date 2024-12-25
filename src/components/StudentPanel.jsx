@@ -1,36 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Typography,
-  Container,
-  Paper,
-  Modal,
-  List,
-  ListItem,
-  ListItemText,
-  CssBaseline,
-  createTheme,
-  ThemeProvider,
-  Alert,
-} from "@mui/material";
-
-const theme = createTheme({
-  typography: {
-    fontFamily: `"Roboto", "Helvetica", "Arial", sans-serif`,
-  },
-  palette: {
-    background: {
-      default: "#f7f7f7",
-    },
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#757575",
-    },
-  },
-});
 
 const StudentPanel = ({ user, onLogout }) => {
   const [activeCourses, setActiveCourses] = useState([]);
@@ -56,7 +24,7 @@ const StudentPanel = ({ user, onLogout }) => {
     setSelectedCourse(course);
     setIsAuthenticated(false);
     setShowPopup(true);
-    setAlertMessage(null); // Önceki alert'i temizle
+    setAlertMessage(null);
   };
 
   const handleSmsVerification = () => {
@@ -106,7 +74,7 @@ const StudentPanel = ({ user, onLogout }) => {
     setShowPopup(false);
     setIsSmsVerified(false);
     setIsFaceVerified(false);
-    setAlertMessage(null); // Popup kapatıldığında alert temizlensin
+    setAlertMessage(null);
   };
 
   const clearAlert = () => {
@@ -114,145 +82,123 @@ const StudentPanel = ({ user, onLogout }) => {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Container maxWidth="sm" sx={{ mt: 10 }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "20px" }}>
-          <img
-            src="/logo.png"
-            alt="Üniversite Logosu"
-            style={{ maxWidth: "100px", marginBottom: "10px" }}
-          />
+    <>
+      <p className="subtitle has-text-centered">
+        Merhaba, {user.username}
+      </p>
+
+      <h2 className="title is-4 has-text-centered mb-4">Aktif Dersler</h2>
+
+      {activeCourses.length === 0 ? (
+        <div className="notification is-info is-light has-text-centered">
+          Aktif dersiniz bulunmamaktadır.
         </div>
-        {/* Panel */}
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-          <Typography
-            variant="h5"
-            component="h1"
-            align="center"
-            gutterBottom
-            sx={{ fontWeight: "bold" }}
-          >
-            e-Yoklama
-          </Typography>
-          <Typography variant="body1" align="center" sx={{ color: "secondary.main", mb: 3 }}>
-            Merhaba, {user.username}
-          </Typography>
-          <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
-            Aktif Dersler
-          </Typography>
-          {activeCourses.length === 0 ? (
-            <Alert severity="info" sx={{ textAlign: "center" }}>
-              Aktif dersiniz bulunmamaktadır.
-            </Alert>
-          ) : (
-            <List>
-              {activeCourses.map((course, index) => (
-                <ListItem
-                  key={index}
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    border: "1px solid #ddd",
-                    borderRadius: "8px",
-                    mb: 1,
-                  }}
-                >
-                  <ListItemText primary={course} />
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => handleCourseSelect(course)}
-                  >
-                    Derse Katıl
-                  </Button>
-                </ListItem>
-              ))}
-            </List>
-          )}
-          <Box mt={3} textAlign="center">
-            <Button variant="contained" color="secondary" onClick={onLogout}>
-              Çıkış Yap
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
+      ) : (
+        <div className="list has-hoverable-list-items">
+          {activeCourses.map((course, index) => (
+            <div key={index} className="list-item">
+              <div className="level is-mobile">
+                <div className="level-left">
+                  <div className="level-item">{course}</div>
+                </div>
+                <div className="level-right">
+                  <div className="level-item">
+                    <button
+                      className="button is-primary"
+                      onClick={() => handleCourseSelect(course)}
+                    >
+                      Derse Katıl
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {/* Popup for Verification */}
-      <Modal open={showPopup} onClose={closePopup}>
-        <Paper
-          elevation={4}
-          sx={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 400,
-            p: 3,
-          }}
+      <div className="has-text-centered mt-5">
+        <button
+          className="button is-danger is-light"
+          onClick={onLogout}
         >
-          <Typography variant="h6" align="center" gutterBottom>
-            {selectedCourse} dersine giriş yapmak için doğrulama yapın.
-          </Typography>
-          <Box sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              color="success"
-              fullWidth
-              onClick={handleSmsVerification}
-              disabled={isSmsVerified}
-            >
-              {isSmsVerified ? "SMS Doğrulandı ✔️" : "SMS Doğrula"}
-            </Button>
-          </Box>
-          <Box sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              color="success"
-              fullWidth
-              onClick={handleFaceVerification}
-              disabled={isFaceVerified}
-            >
-              {isFaceVerified ? "Yüz Tanıma Doğrulandı ✔️" : "Yüz Tanıma Doğrula"}
-            </Button>
-          </Box>
-          {isSmsVerified && isFaceVerified && (
-            <Button variant="contained" color="primary" fullWidth onClick={handleAuthentication}>
-              Giriş Yap
-            </Button>
-          )}
-        </Paper>
-      </Modal>
+          Çıkış Yap
+        </button>
+      </div>
 
-      {/* Alert Mesajları */}
+      {/* Doğrulama Modal */}
+      <div className={`modal ${showPopup ? "is-active" : ""}`}>
+        <div className="modal-background" onClick={closePopup}></div>
+        <div className="modal-card">
+          <header className="modal-card-head">
+            <p className="modal-card-title">Doğrulama</p>
+            <button
+              className="delete"
+              aria-label="close"
+              onClick={closePopup}
+            ></button>
+          </header>
+          <section className="modal-card-body">
+            <div className="content">
+              <h3 className="has-text-centered mb-4">
+                {selectedCourse} dersine giriş yapmak için doğrulama yapın.
+              </h3>
+              
+              <div className="buttons is-flex is-flex-direction-column">
+                <button
+                  className={`button is-fullwidth ${
+                    isSmsVerified ? "is-success" : "is-info"
+                  }`}
+                  onClick={handleSmsVerification}
+                  disabled={isSmsVerified}
+                >
+                  {isSmsVerified ? "SMS Doğrulandı ✔️" : "SMS Doğrula"}
+                </button>
+
+                <button
+                  className={`button is-fullwidth ${
+                    isFaceVerified ? "is-success" : "is-info"
+                  }`}
+                  onClick={handleFaceVerification}
+                  disabled={isFaceVerified}
+                >
+                  {isFaceVerified ? "Yüz Tanıma Doğrulandı ✔️" : "Yüz Tanıma Doğrula"}
+                </button>
+
+                {isSmsVerified && isFaceVerified && (
+                  <button
+                    className="button is-primary is-fullwidth"
+                    onClick={handleAuthentication}
+                  >
+                    Giriş Yap
+                  </button>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* Alert Mesajı */}
       {alertMessage && (
-  <Box
-    sx={{
-      position: "fixed",
-      bottom: 20,
-      left: "50%",
-      transform: "translateX(-50%)",
-      width: "90%",
-      maxWidth: "600px",
-      zIndex: 1301, // MUI Modal'ın z-index'i 1300'dür, bunu geçiyoruz.
-    }}
-  >
-    <Alert
-      variant="outlined"
-      severity={alertMessage.severity}
-      onClose={clearAlert}
-      sx={{
-        backgroundColor: "white", // Alert'in arka planını temiz tutar
-      }}
-    >
-      {alertMessage.text}
-    </Alert>
-  </Box>
-)}
-
-    </ThemeProvider>
+        <div className="notification-container">
+          <div
+            className={`notification is-${alertMessage.severity} is-light`}
+            style={{
+              position: "fixed",
+              bottom: "20px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              minWidth: "300px",
+            }}
+          >
+            <button className="delete" onClick={clearAlert}></button>
+            {alertMessage.text}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

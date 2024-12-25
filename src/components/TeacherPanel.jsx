@@ -1,40 +1,4 @@
 import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Typography,
-  Container,
-  Paper,
-  Modal,
-  List,
-  ListItem,
-  ListItemText,
-  CssBaseline,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  createTheme,
-  ThemeProvider,
-  Alert,
-} from "@mui/material";
-
-const theme = createTheme({
-  typography: {
-    fontFamily: `"Roboto", "Helvetica", "Arial", sans-serif`,
-  },
-  palette: {
-    background: {
-      default: "#f7f7f7",
-    },
-    primary: {
-      main: "#1976d2",
-    },
-    secondary: {
-      main: "#757575",
-    },
-  },
-});
 
 const TeacherPanel = ({ user, onLogout }) => {
   const [selectedCourse, setSelectedCourse] = useState("");
@@ -104,149 +68,116 @@ const TeacherPanel = ({ user, onLogout }) => {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Container maxWidth="sm" sx={{ mt: 10 }}>
-        {/* Logo Ekleme */}
-        <div style={{ textAlign: "center", marginBottom: "20px" }}>
-          <img
-            src="/logo.png" // Logo dosyasının yolu
-            alt="Üniversite Logosu"
-            style={{
-              maxWidth: "100px", // Logonun boyutu
-              marginBottom: "10px", // Logo ile diğer içerik arasındaki boşluk
-            }}
-          />
-        </div>
-        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-          {/* Header */}
-          <Typography
-            variant="h5"
-            component="h1"
-            align="center"
-            gutterBottom
-            sx={{ fontWeight: "bold" }}
-          >
-            e-Yoklama
-          </Typography>
-          <Typography
-            variant="body1"
-            align="center"
-            sx={{ color: "secondary.main", mb: 3 }}
-          >
-            Merhaba, {user.username}
-          </Typography>
+    <>
+      <p className="subtitle has-text-centered">
+        Merhaba, {user.username}
+      </p>
 
-          {/* Ders Seçimi */}
-          <FormControl variant="standard" fullWidth sx={{ mb: 3 }}>
-            <InputLabel id="course-select-label">Ders Seç</InputLabel>
-            <Select
-              labelId="course-select-label"
-              id="course-select"
+      {/* Ders Seçimi */}
+      <div className="field">
+        <label className="label">Ders Seç</label>
+        <div className="control">
+          <div className="select is-fullwidth">
+            <select
               value={selectedCourse}
               onChange={(e) => setSelectedCourse(e.target.value)}
-              label="Ders Seç"
             >
+              <option value="">Ders Seçiniz</option>
               {courses.map((course) => (
-                <MenuItem key={course.id} value={course.name}>
+                <option key={course.id} value={course.name}>
                   {course.name}
-                </MenuItem>
+                </option>
               ))}
-            </Select>
-          </FormControl>
+            </select>
+          </div>
+        </div>
+      </div>
 
-          {/* Yoklama Butonları */}
-          <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-            <Button
-              variant="contained"
-              color={attendanceStarted ? "error" : "primary"}
-              onClick={startOrEndAttendance}
-              fullWidth
-            >
-              {attendanceStarted ? "Yoklama Bitir" : "Yoklama Başlat"}
-            </Button>
-            {attendanceStarted && (
-              <Button
-                variant="outlined"
-                onClick={handleShowAttendanceList}
-                fullWidth
-              >
-                Listeyi Gör
-              </Button>
+      {/* Yoklama Kontrolleri */}
+      <div className="buttons is-centered mt-5">
+        <button
+          className={`button is-fullwidth ${
+            attendanceStarted ? "is-danger" : "is-primary"
+          }`}
+          onClick={startOrEndAttendance}
+        >
+          {attendanceStarted ? "Yoklama Bitir" : "Yoklama Başlat"}
+        </button>
+        {attendanceStarted && (
+          <button
+            className="button is-info is-fullwidth"
+            onClick={handleShowAttendanceList}
+          >
+            Listeyi Gör
+          </button>
+        )}
+      </div>
+
+      {/* Çıkış Butonu */}
+      <div className="has-text-centered mt-5">
+        <button
+          className="button is-danger is-light"
+          onClick={onLogout}
+        >
+          Çıkış Yap
+        </button>
+      </div>
+
+      {/* Yoklama Listesi Modal */}
+      <div className={`modal ${openModal ? "is-active" : ""}`}>
+        <div className="modal-background" onClick={handleCloseModal}></div>
+        <div className="modal-card">
+          <header className="modal-card-head">
+            <p className="modal-card-title">
+              {selectedCourse} - Yoklama Listesi
+            </p>
+            <button
+              className="delete"
+              aria-label="close"
+              onClick={handleCloseModal}
+            ></button>
+          </header>
+          <section className="modal-card-body">
+            {attendanceList.length === 0 ? (
+              <p className="has-text-centered">Henüz katılım yok.</p>
+            ) : (
+              <div className="content">
+                <ul>
+                  {attendanceList.map((student, index) => (
+                    <li key={index}>{student}</li>
+                  ))}
+                </ul>
+              </div>
             )}
-          </Box>
+          </section>
+          <footer className="modal-card-foot">
+            <button className="button" onClick={handleCloseModal}>
+              Kapat
+            </button>
+          </footer>
+        </div>
+      </div>
 
-          {/* Çıkış Yap Butonu */}
-          <Box mt={3} textAlign="center">
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={onLogout}
-              fullWidth
-            >
-              Çıkış Yap
-            </Button>
-          </Box>
-        </Paper>
-
-        {/* Modal for Attendance List */}
-        <Modal open={openModal} onClose={handleCloseModal}>
-          <Paper
-            elevation={4}
-            sx={{
-              position: "absolute",
-              top: "50%",
+      {/* Alert Mesajı */}
+      {alertMessage && (
+        <div className="notification-container">
+          <div
+            className={`notification is-${alertMessage.severity} is-light`}
+            style={{
+              position: "fixed",
+              bottom: "20px",
               left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 400,
-              p: 3,
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              minWidth: "300px",
             }}
           >
-            <Typography variant="h6" align="center" gutterBottom>
-              {selectedCourse} - Yoklama Listesi
-            </Typography>
-            <List>
-              {attendanceList.length === 0 ? (
-                <Typography align="center">Henüz katılım yok.</Typography>
-              ) : (
-                attendanceList.map((student, index) => (
-                  <ListItem key={index}>
-                    <ListItemText primary={student} />
-                  </ListItem>
-                ))
-              )}
-            </List>
-            <Box mt={2} textAlign="center">
-              <Button variant="contained" onClick={handleCloseModal}>
-                Kapat
-              </Button>
-            </Box>
-          </Paper>
-        </Modal>
-      </Container>
-
-      {/* Alert Mesajları */}
-      {alertMessage && (
-        <Box
-          sx={{
-            position: "fixed",
-            bottom: 20,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "90%",
-            maxWidth: "600px",
-          }}
-        >
-          <Alert
-            variant="outlined"
-            severity={alertMessage.severity}
-            onClose={clearAlert}
-          >
+            <button className="delete" onClick={clearAlert}></button>
             {alertMessage.text}
-          </Alert>
-        </Box>
+          </div>
+        </div>
       )}
-    </ThemeProvider>
+    </>
   );
 };
 
