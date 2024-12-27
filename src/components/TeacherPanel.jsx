@@ -1,16 +1,51 @@
 import React, { useState, useEffect } from "react";
 
 const TeacherPanel = ({ user, onLogout }) => {
+  // Debug için eklenen loglar
+  console.log("TeacherPanel'e gelen user:", user);
+  console.log("TeacherPanel'e gelen user.mail:", user?.mail);
+
   const [selectedCourse, setSelectedCourse] = useState("");
   const [attendanceStarted, setAttendanceStarted] = useState(false);
   const [attendanceList, setAttendanceList] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
+  const [courses, setCourses] = useState([]);
 
-  const courses = [
-    { id: 1, name: "BIL4104 - Yazılım Mühendisliği" },
-    { id: 2, name: "BIL4106 - Yapay Zeka" },
-  ];
+  useEffect(() => {
+    // Öğretmenin derslerini getir
+    const fetchTeacherCourses = async () => {
+      try {
+        console.log("Dersler için istek atılıyor:", user.mail); // Debug log
+        const response = await fetch(`http://localhost:5000/api/courses/teacher/${user.mail}`);
+        console.log("Backend yanıtı:", response); // Debug log
+        const data = await response.json();
+        console.log("Gelen dersler:", data); // Debug log
+        
+        if (response.ok) {
+          setCourses(data.courses);
+        } else {
+          setAlertMessage({
+            severity: "error",
+            text: "Dersler yüklenirken bir hata oluştu: " + (data.error || "Bilinmeyen hata")
+          });
+        }
+      } catch (error) {
+        console.error('Ders yükleme hatası:', error);
+        setAlertMessage({
+          severity: "error",
+          text: "Dersler yüklenirken bir hata oluştu: " + error.message
+        });
+      }
+    };
+
+    if (user && user.mail) {  // user ve mail kontrolü
+      console.log("useEffect tetiklendi, user.mail:", user.mail); // Debug log
+      fetchTeacherCourses();
+    } else {
+      console.log("useEffect tetiklendi fakat user.mail yok!"); // Debug log
+    }
+  }, [user?.mail]); // dependency'i user?.mail olarak güncelledik
 
   useEffect(() => {
     const storedCourse = localStorage.getItem("selectedCourse");
@@ -70,7 +105,7 @@ const TeacherPanel = ({ user, onLogout }) => {
   return (
     <>
       <p className="subtitle has-text-centered">
-        Merhaba, {user.username}
+        Hoşgeldiniz, {user.ad} {user.soyad}
       </p>
 
       {/* Ders Seçimi */}
@@ -84,8 +119,8 @@ const TeacherPanel = ({ user, onLogout }) => {
             >
               <option value="">Ders Seçiniz</option>
               {courses.map((course) => (
-                <option key={course.id} value={course.name}>
-                  {course.name}
+                <option key={course._id} value={course.kod}>
+                  {course.kod} - {course.ad}
                 </option>
               ))}
             </select>

@@ -19,7 +19,8 @@ const Login = ({ onLogin }) => {
         mail: username,
         sifre: password
       };
-      console.log('Gönderilen veriler:', loginData);
+
+      console.log("Login isteği gönderiliyor:", loginData); // Debug log
 
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
@@ -29,12 +30,26 @@ const Login = ({ onLogin }) => {
         body: JSON.stringify(loginData)
       });
 
-      console.log('Status:', response.status);
       const data = await response.json();
-      console.log('Response data:', data);
+      console.log("Login yanıtı:", data); // Debug log
 
       if (response.ok) {
-        onLogin(data.user);
+        // Beni Hatırla seçeneği işaretliyse kullanıcı adını kaydet
+        if (rememberMe) {
+          localStorage.setItem("rememberMe", JSON.stringify({ username }));
+        } else {
+          localStorage.removeItem("rememberMe");
+        }
+
+        // Kullanıcı bilgilerini ve rolü ilet
+        const userData = {
+          mail: data.user.mail,
+          role: data.user.role,
+          ad: data.user.ad,
+          soyad: data.user.soyad
+        };
+        console.log("Login başarılı, userData:", userData); // Debug log
+        onLogin(userData);
       } else {
         setError(data.error || 'Giriş başarısız');
       }
