@@ -33,13 +33,13 @@
   
   .message-container {
     position: fixed;
-    top: 20px;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
     width: 90%;
     max-width: 600px;
-    animation: slideDown 0.3s ease-out;
+    animation: slideUp 0.3s ease-out;
   }
   
   .message-body {

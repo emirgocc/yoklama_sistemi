@@ -13,25 +13,34 @@ const Login = ({ onLogin }) => {
     }
   }, []);
 
-  const handleLogin = () => {
-    if (!username || !password) {
-      setError("Lütfen e-posta ve şifre girin.");
-      return;
-    }
+  const handleLogin = async () => {
+    try {
+      const loginData = {
+        mail: username,
+        sifre: password
+      };
+      console.log('Gönderilen veriler:', loginData);
 
-    if (username === "admin" && password === "admin") {
-      onLogin({ username, role: "teacher" });
-    } else if (username === "user" && password === "user") {
-      onLogin({ username, role: "student" });
-    } else {
-      setError("Geçersiz e-posta veya şifre!");
-      return;
-    }
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData)
+      });
 
-    if (rememberMe) {
-      localStorage.setItem("rememberMe", JSON.stringify({ username }));
-    } else {
-      localStorage.removeItem("rememberMe");
+      console.log('Status:', response.status);
+      const data = await response.json();
+      console.log('Response data:', data);
+
+      if (response.ok) {
+        onLogin(data.user);
+      } else {
+        setError(data.error || 'Giriş başarısız');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Bağlantı hatası: ' + error.message);
     }
   };
 
