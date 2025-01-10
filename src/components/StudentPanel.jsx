@@ -158,24 +158,63 @@ const StudentPanel = ({ user, onLogout }) => {
           {activeCourses.map((course) => (
             <div key={course._id} className="list-item">
               <div className="level is-mobile">
-                <div className="level-left">
+                <div className="level-left" style={{ flex: 1, marginRight: '1rem' }}>
                   <div className="level-item">
-                    <span>{course.dersKodu} - {course.dersAdi}</span>
-                  </div>
-                </div>
-                <div className="level-right">
-                  <div className="level-item">
-                    <button
-                      className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
-                      onClick={() => handleCourseSelect(course)}
-                      disabled={course.katilimYapildi}
-                      style={course.katilimYapildi ? {
-                        backgroundColor: '#f5f5f5',
-                        color: '#7a7a7a'
-                      } : {}}
-                    >
-                      {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
-                    </button>
+                    <div style={{ width: '100%' }}>
+                      <div className="is-flex is-justify-content-space-between is-align-items-center mb-1">
+                        <div style={{ maxWidth: 'calc(100% - 140px)' }}>
+                          <p className="mb-0">{course.dersKodu} - {course.dersAdi}</p>
+                        </div>
+                        <div style={{ width: '120px', flexShrink: 0 }}>
+                          <button
+                            className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
+                            onClick={() => handleCourseSelect(course)}
+                            disabled={course.katilimYapildi}
+                            style={course.katilimYapildi ? {
+                              backgroundColor: '#f5f5f5',
+                              color: '#7a7a7a',
+                              width: '100%'
+                            } : {
+                              width: '100%'
+                            }}
+                          >
+                            {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="is-size-7 has-text-grey mt-1">
+                        <p className="mb-1">
+                          <span className="icon-text">
+                            <span className="icon">
+                              <i className="fas fa-user-tie"></i>
+                            </span>
+                            <span>{course.ogretmenler?.[0]}</span>
+                          </span>
+                        </p>
+                        {course.tarih && (
+                          <p className="mb-0">
+                            <span className="icon-text">
+                              <span className="icon">
+                                <i className="fas fa-clock"></i>
+                              </span>
+                              <span>
+                                {(() => {
+                                  const date = new Date(course.tarih);
+                                  date.setHours(date.getHours() - 3);
+                                  return date.toLocaleString('tr-TR', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                  });
+                                })()}
+                              </span>
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -200,14 +239,10 @@ const StudentPanel = ({ user, onLogout }) => {
       {/* Doğrulama Modal */}
       <div className={`modal ${showPopup ? "is-active" : ""}`}>
         <div className="modal-background" onClick={closePopup}></div>
-        <div className="modal-card">
-          <header className="modal-card-head">
+        <div className="modal-card" style={{ borderRadius: '6px' }}>
+          <header className="modal-card-head" style={{ justifyContent: 'space-between' }}>
             <p className="modal-card-title">Doğrulama</p>
-            <button
-              className="delete"
-              aria-label="close"
-              onClick={closePopup}
-            ></button>
+            <button className="button" onClick={closePopup}>Kapat</button>
           </header>
           <section className="modal-card-body">
             <div className="content">
@@ -262,7 +297,7 @@ const StudentPanel = ({ user, onLogout }) => {
       {alertMessage && (
         <div className="notification-container">
           <div
-            className={`notification is-${alertMessage.severity} is-light`}
+            className={`message is-${alertMessage.severity}`}
             style={{
               position: "fixed",
               bottom: "20px",
@@ -270,10 +305,16 @@ const StudentPanel = ({ user, onLogout }) => {
               transform: "translateX(-50%)",
               zIndex: 1000,
               minWidth: "300px",
+              margin: 0,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
             }}
           >
-            <button className="delete" onClick={clearAlert}></button>
-            {alertMessage.text}
+            <div className="message-body" style={{
+              backgroundColor: alertMessage.severity === 'success' ? '#ebffef' : undefined
+            }}>
+              <button className="delete" style={{ float: 'right' }} onClick={clearAlert}></button>
+              {alertMessage.text}
+            </div>
           </div>
         </div>
       )}

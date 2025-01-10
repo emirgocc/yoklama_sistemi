@@ -421,7 +421,7 @@ const TeacherPanel = ({ user, onLogout }) => {
       {alertMessage && (
         <div className="notification-container">
           <div
-            className={`notification is-${alertMessage.severity} is-light`}
+            className={`message is-${alertMessage.severity}`}
             style={{
               position: "fixed",
               bottom: "20px",
@@ -429,10 +429,16 @@ const TeacherPanel = ({ user, onLogout }) => {
               transform: "translateX(-50%)",
               zIndex: 1000,
               minWidth: "300px",
+              margin: 0,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
             }}
           >
-            <button className="delete" onClick={clearAlert}></button>
-            {alertMessage.text}
+            <div className="message-body" style={{
+              backgroundColor: alertMessage.severity === 'success' ? '#ebffef' : undefined
+            }}>
+              <button className="delete" style={{ float: 'right' }} onClick={clearAlert}></button>
+              {alertMessage.text}
+            </div>
           </div>
         </div>
       )}

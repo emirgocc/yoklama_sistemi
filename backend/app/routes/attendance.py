@@ -21,20 +21,23 @@ def get_active_courses(ogrno):
         for course in active_courses:
             course_id = str(course['_id'])
             
+            # Öğretmen adını al
+            ogretmen = db.users.find_one({"mail": course.get('ogretmenMail')})
+            ogretmen_adi = f"{ogretmen['ad']} {ogretmen['soyad']}" if ogretmen else course.get('ogretmenMail')
+            
             # Katılım durumunu katilanlar dizisinden kontrol et
             katilim_yapildi = ogrno in course.get('katilanlar', [])
-            
-            print(f"[DEBUG] Ders {course_id} için katılım durumu: {katilim_yapildi}")
             
             formatted_course = {
                 '_id': course_id,
                 'dersKodu': course['dersKodu'],
                 'dersAdi': course['dersAdi'],
-                'katilimYapildi': katilim_yapildi
+                'katilimYapildi': katilim_yapildi,
+                'ogretmenler': [ogretmen_adi],
+                'tarih': course.get('tarih')
             }
-            formatted_courses.append(formatted_course)
             
-            print(f"[DEBUG] Formatlanmış ders bilgisi: {formatted_course}")
+            formatted_courses.append(formatted_course)
         
         return jsonify(formatted_courses)
         
