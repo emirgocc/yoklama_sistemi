@@ -9,22 +9,57 @@ const StudentPanel = ({ user, onLogout }) => {
   const [isFaceVerified, setIsFaceVerified] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
 
-  useEffect(() => {
-    const courses = JSON.parse(localStorage.getItem("activeAttendance")) || [];
-    setActiveCourses(courses);
+  const fetchActiveCourses = async () => {
+    try {
+      console.log("[DEBUG] Aktif dersler isteniyor...");
+      console.log("[DEBUG] Kullanıcı bilgileri:", user);
+      
+      if (!user || !user.ogrno) {
+        console.log("[HATA] Kullanıcı bilgileri eksik!");
+        return;
+      }
 
-    const storedAuth = JSON.parse(localStorage.getItem("isAuthenticated"));
-    if (storedAuth && storedAuth.username === user.username) {
-      setIsAuthenticated(true);
-      setSelectedCourse(storedAuth.selectedCourse);
+      const response = await fetch(`http://localhost:5000/api/attendance/active-courses/${user.ogrno}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log("[DEBUG] API yanıtı:", response);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("[DEBUG] Backend'den gelen dersler ve katılım durumları:", data);
+      data.forEach(course => {
+        console.log(`[DEBUG] ${course.dersKodu}: katilimYapildi = ${course.katilimYapildi}`);
+      });
+      
+      setActiveCourses(data);
+      
+    } catch (error) {
+      console.error('[HATA] Aktif dersler yüklenirken hata:', error);
+      setAlertMessage({
+        severity: "error",
+        text: "Aktif dersler yüklenirken bir hata oluştu."
+      });
     }
-  }, [user.username]);
+  };
+
+  useEffect(() => {
+    fetchActiveCourses();
+  }, [user]);
 
   const handleCourseSelect = (course) => {
     setSelectedCourse(course);
     setIsAuthenticated(false);
     setShowPopup(true);
     setAlertMessage(null);
+    setIsSmsVerified(false);
+    setIsFaceVerified(false);
   };
 
   const handleSmsVerification = () => {
@@ -43,29 +78,42 @@ const StudentPanel = ({ user, onLogout }) => {
     });
   };
 
-  const handleAuthentication = () => {
+  const handleAuthentication = async () => {
     if (isSmsVerified && isFaceVerified) {
-      setIsAuthenticated(true);
-      const attendanceList = JSON.parse(localStorage.getItem("attendanceList")) || {};
-      const courseList = attendanceList[selectedCourse] || [];
-      if (!courseList.includes(user.username)) {
-        courseList.push(user.username);
-        attendanceList[selectedCourse] = courseList;
-        localStorage.setItem("attendanceList", JSON.stringify(attendanceList));
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/attendance/verify-attendance/${selectedCourse._id}/${user.ogrno}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }
+        );
+
+        if (response.ok) {
+          setIsAuthenticated(true);
+          setShowPopup(false);
+          
+          await fetchActiveCourses();
+          
+          setAlertMessage({
+            severity: "success",
+            text: `${selectedCourse.dersAdi} dersine başarıyla giriş yaptınız.`
+          });
+        } else {
+          throw new Error('Yoklama kaydı başarısız');
+        }
+      } catch (error) {
+        setAlertMessage({
+          severity: "error",
+          text: "Yoklama kaydı yapılırken hata oluştu: " + error.message
+        });
       }
-      localStorage.setItem(
-        "isAuthenticated",
-        JSON.stringify({ username: user.username, selectedCourse })
-      );
-      setShowPopup(false);
-      setAlertMessage({
-        severity: "info",
-        text: `${selectedCourse} dersine başarıyla giriş yaptınız.`,
-      });
     } else {
       setAlertMessage({
         severity: "warning",
-        text: "Lütfen tüm doğrulamaları tamamlayın.",
+        text: "Lütfen tüm doğrulamaları tamamlayın."
       });
     }
   };
@@ -83,31 +131,50 @@ const StudentPanel = ({ user, onLogout }) => {
 
   return (
     <>
-      <p className="subtitle has-text-centered">
+      <p className="subtitle has-text-centered mb-4">
         Merhaba, {user.username}
       </p>
 
-      <h2 className="title is-4 has-text-centered mb-4">Aktif Dersler</h2>
+      <h2 className="title is-5 has-text-centered mb-4">
+        <span className="icon-text">
+          <span className="icon">
+            <i className="fas fa-book"></i>
+          </span>
+          <span>Aktif Dersler</span>
+        </span>
+      </h2>
 
       {activeCourses.length === 0 ? (
         <div className="notification is-info is-light has-text-centered">
-          Aktif dersiniz bulunmamaktadır.
+          <span className="icon-text">
+            <span className="icon">
+              <i className="fas fa-info-circle"></i>
+            </span>
+            <span>Aktif dersiniz bulunmamaktadır.</span>
+          </span>
         </div>
       ) : (
         <div className="list has-hoverable-list-items">
-          {activeCourses.map((course, index) => (
-            <div key={index} className="list-item">
+          {activeCourses.map((course) => (
+            <div key={course._id} className="list-item">
               <div className="level is-mobile">
                 <div className="level-left">
-                  <div className="level-item">{course}</div>
+                  <div className="level-item">
+                    <span>{course.dersKodu} - {course.dersAdi}</span>
+                  </div>
                 </div>
                 <div className="level-right">
                   <div className="level-item">
                     <button
-                      className="button is-primary"
+                      className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
                       onClick={() => handleCourseSelect(course)}
+                      disabled={course.katilimYapildi}
+                      style={course.katilimYapildi ? {
+                        backgroundColor: '#f5f5f5',
+                        color: '#7a7a7a'
+                      } : {}}
                     >
-                      Derse Katıl
+                      {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
                     </button>
                   </div>
                 </div>
@@ -117,12 +184,16 @@ const StudentPanel = ({ user, onLogout }) => {
         </div>
       )}
 
+      {/* Çıkış Butonu */}
       <div className="has-text-centered mt-5">
         <button
           className="button is-danger is-light"
           onClick={onLogout}
         >
-          Çıkış Yap
+          <span className="icon">
+            <i className="fas fa-sign-out-alt"></i>
+          </span>
+          <span>Çıkış Yap</span>
         </button>
       </div>
 
@@ -141,28 +212,36 @@ const StudentPanel = ({ user, onLogout }) => {
           <section className="modal-card-body">
             <div className="content">
               <h3 className="has-text-centered mb-4">
-                {selectedCourse} dersine giriş yapmak için doğrulama yapın.
+                {selectedCourse ? `${selectedCourse.dersKodu} - ${selectedCourse.dersAdi}` : ''} dersine giriş yapmak için doğrulama yapın.
               </h3>
               
               <div className="buttons is-flex is-flex-direction-column">
                 <button
                   className={`button is-fullwidth ${
-                    isSmsVerified ? "is-success" : "is-info"
+                    isSmsVerified ? "is-light" : "is-info"
                   }`}
                   onClick={handleSmsVerification}
                   disabled={isSmsVerified}
+                  style={isSmsVerified ? {
+                    backgroundColor: '#f5f5f5',
+                    color: '#7a7a7a'
+                  } : {}}
                 >
-                  {isSmsVerified ? "SMS Doğrulandı ✔️" : "SMS Doğrula"}
+                  {isSmsVerified ? "SMS Doğrulandı" : "SMS Doğrula"}
                 </button>
 
                 <button
                   className={`button is-fullwidth ${
-                    isFaceVerified ? "is-success" : "is-info"
+                    isFaceVerified ? "is-light" : "is-info"
                   }`}
                   onClick={handleFaceVerification}
                   disabled={isFaceVerified}
+                  style={isFaceVerified ? {
+                    backgroundColor: '#f5f5f5',
+                    color: '#7a7a7a'
+                  } : {}}
                 >
-                  {isFaceVerified ? "Yüz Tanıma Doğrulandı ✔️" : "Yüz Tanıma Doğrula"}
+                  {isFaceVerified ? "Yüz Tanıma Doğrulandı" : "Yüz Tanıma Doğrula"}
                 </button>
 
                 {isSmsVerified && isFaceVerified && (

@@ -7,34 +7,24 @@ auth = Blueprint('auth', __name__)
 def login():
     try:
         data = request.get_json()
-        
-        # Gerekli alanları kontrol et
-        if not data or 'mail' not in data or 'sifre' not in data:
-            return jsonify({'error': 'Mail ve şifre gerekli'}), 400
-        
-        print(f"Gelen istek: {data}")  # Debug için
-        
-        # Kullanıcıyı bul
-        user = db.users.find_one({
-            'mail': data['mail'],
-            'sifre': data['sifre']
-        })
-        
-        print(f"Bulunan kullanıcı: {user}")  # Debug için
+        user = db.users.find_one({"mail": data['mail'], "sifre": data['sifre']})
         
         if user:
+            # Tüm gerekli kullanıcı bilgilerini gönder
             return jsonify({
                 'message': 'Giriş başarılı',
                 'user': {
                     'mail': user['mail'],
                     'role': user['role'],
                     'ad': user['ad'],
-                    'soyad': user['soyad']
+                    'soyad': user['soyad'],
+                    'ogrno': user.get('ogrno'),  # Öğrenci numarasını da ekle
+                    'telno': user.get('telno')   # Telefon numarasını da ekle
                 }
             })
-        
-        return jsonify({'error': 'Geçersiz mail veya şifre'}), 401
-        
+        else:
+            return jsonify({'error': 'Geçersiz kullanıcı adı veya şifre'}), 401
+            
     except Exception as e:
-        print(f"Login hatası: {e}")  # Debug için
-        return jsonify({'error': f'Sunucu hatası: {str(e)}'}), 500
+        print(f"Login hatası: {e}")
+        return jsonify({'error': str(e)}), 500
