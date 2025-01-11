@@ -158,25 +158,30 @@ const StudentPanel = ({ user, onLogout }) => {
           {activeCourses.map((course) => (
             <div key={course._id} className="list-item">
               <div className="level is-mobile">
-                <div className="level-left" style={{ flex: 1, marginRight: '1rem' }}>
-                  <div className="level-item">
+                <div className="level-left" style={{ flex: 1 }}>
+                  <div className="level-item" style={{ width: '100%' }}>
                     <div style={{ width: '100%' }}>
                       <div className="is-flex is-justify-content-space-between is-align-items-center mb-1">
-                        <div style={{ maxWidth: 'calc(100% - 140px)' }}>
-                          <p className="mb-0">{course.dersKodu} - {course.dersAdi}</p>
+                        <div style={{ flex: 1, marginRight: '1rem', overflow: 'hidden' }}>
+                          <p className="mb-0" style={{ 
+                            wordBreak: 'break-word', 
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}>
+                            {course.dersKodu} - {course.dersAdi}
+                          </p>
                         </div>
-                        <div style={{ width: '120px', flexShrink: 0 }}>
+                        <div style={{ flexShrink: 0 }}>
                           <button
                             className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
                             onClick={() => handleCourseSelect(course)}
                             disabled={course.katilimYapildi}
                             style={course.katilimYapildi ? {
                               backgroundColor: '#f5f5f5',
-                              color: '#7a7a7a',
-                              width: '100%'
-                            } : {
-                              width: '100%'
-                            }}
+                              color: '#7a7a7a'
+                            } : {}}
                           >
                             {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
                           </button>
