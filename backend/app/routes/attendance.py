@@ -64,3 +64,40 @@ def verify_attendance(ders_id, ogrno):
     except Exception as e:
         print(f"[HATA] Yoklama kaydı hatası: {str(e)}")
         return jsonify({'error': str(e)}), 500 
+
+@attendance_routes.route('/student-tracking/<ogrno>', methods=['GET'])
+def get_student_tracking(ogrno):
+    try:
+        # Öğrencinin tüm derslerini bul
+        all_courses = list(db.attendance.find({
+            "tumOgrenciler": ogrno
+        }).distinct("dersKodu"))
+        
+        tracking_data = []
+        
+        for ders_kodu in all_courses:
+            # Her ders için yoklama verilerini topla
+            dersler = list(db.attendance.find({
+                "dersKodu": ders_kodu,
+                "tumOgrenciler": ogrno
+            }))
+            
+            if dersler:
+                toplam_ders = len(dersler)
+                katildigi_ders = sum(1 for ders in dersler if ogrno in ders.get('katilanlar', []))
+                katilmadigi_ders = toplam_ders - katildigi_ders
+                katilim_orani = round((katildigi_ders / toplam_ders) * 100) if toplam_ders > 0 else 0
+                
+                tracking_data.append({
+                    "dersKodu": ders_kodu,
+                    "dersAdi": dersler[0].get('dersAdi', ''),
+                    "toplamDers": toplam_ders,
+                    "katildigiDers": katildigi_ders,
+                    "katilmadigiDers": katilmadigi_ders,
+                    "katilimOrani": katilim_orani
+                })
+        
+        return jsonify(tracking_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500 

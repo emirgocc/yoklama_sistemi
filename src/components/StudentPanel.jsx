@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import AttendanceTracking from './AttendanceTracking';
 
 const StudentPanel = ({ user, onLogout }) => {
   const [activeCourses, setActiveCourses] = useState([]);
@@ -8,6 +9,7 @@ const StudentPanel = ({ user, onLogout }) => {
   const [isSmsVerified, setIsSmsVerified] = useState(false);
   const [isFaceVerified, setIsFaceVerified] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
+  const [showAttendanceTracking, setShowAttendanceTracking] = useState(false);
 
   const fetchActiveCourses = async () => {
     try {
@@ -131,115 +133,143 @@ const StudentPanel = ({ user, onLogout }) => {
 
   return (
     <>
-      <p className="subtitle has-text-centered mb-4">
-        Merhaba, {user.username}
-      </p>
+      <div className="container">
+        <p className="subtitle has-text-centered mb-4">
+          Merhaba, {user.username}
+        </p>
 
-      <h2 className="title is-5 has-text-centered mb-4">
-        <span className="icon-text">
-          <span className="icon">
-            <i className="fas fa-book"></i>
-          </span>
-          <span>Aktif Dersler</span>
-        </span>
-      </h2>
-
-      {activeCourses.length === 0 ? (
-        <div className="notification is-info is-light has-text-centered">
+        <h2 className="title is-5 has-text-centered mb-4">
           <span className="icon-text">
             <span className="icon">
-              <i className="fas fa-info-circle"></i>
+              <i className="fas fa-book"></i>
             </span>
-            <span>Aktif dersiniz bulunmamaktadır.</span>
+            <span>Aktif Dersler</span>
           </span>
-        </div>
-      ) : (
-        <div className="list has-hoverable-list-items">
-          {activeCourses.map((course) => (
-            <div key={course._id} className="list-item">
-              <div className="level is-mobile">
-                <div className="level-left" style={{ flex: 1 }}>
-                  <div className="level-item" style={{ width: '100%' }}>
-                    <div style={{ width: '100%' }}>
-                      <div className="is-flex is-justify-content-space-between is-align-items-center mb-1">
-                        <div style={{ flex: 1, marginRight: '1rem', overflow: 'hidden' }}>
-                          <p className="mb-0" style={{ 
-                            wordBreak: 'break-word', 
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden'
-                          }}>
-                            {course.dersKodu} - {course.dersAdi}
-                          </p>
+        </h2>
+
+        {/* Aktif Dersler Listesi */}
+        {activeCourses.length === 0 ? (
+          <div className="notification is-info is-light has-text-centered">
+            <span className="icon-text">
+              <span className="icon">
+                <i className="fas fa-info-circle"></i>
+              </span>
+              <span>Aktif dersiniz bulunmamaktadır.</span>
+            </span>
+          </div>
+        ) : (
+          <div className="list has-hoverable-list-items">
+            {activeCourses.map((course) => (
+              <div key={course._id} className="list-item" style={{ marginBottom: '1rem' }}>
+                <div className="level is-mobile">
+                  <div className="level-left" style={{ flex: 1 }}>
+                    <div className="level-item" style={{ width: '100%' }}>
+                      <div style={{ width: '100%' }}>
+                        <div className="is-flex is-justify-content-space-between is-align-items-center mb-1">
+                          <div style={{ flex: 1, marginRight: '1rem', overflow: 'hidden' }}>
+                            <p className="mb-0" style={{ 
+                              wordBreak: 'break-word', 
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden'
+                            }}>
+                              {course.dersKodu} - {course.dersAdi}
+                            </p>
+                          </div>
+                          <div style={{ flexShrink: 0 }}>
+                            <button
+                              className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
+                              onClick={() => handleCourseSelect(course)}
+                              disabled={course.katilimYapildi}
+                              style={course.katilimYapildi ? {
+                                backgroundColor: '#f5f5f5',
+                                color: '#7a7a7a'
+                              } : {}}
+                            >
+                              {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ flexShrink: 0 }}>
-                          <button
-                            className={`button ${course.katilimYapildi ? 'is-light' : 'is-primary'}`}
-                            onClick={() => handleCourseSelect(course)}
-                            disabled={course.katilimYapildi}
-                            style={course.katilimYapildi ? {
-                              backgroundColor: '#f5f5f5',
-                              color: '#7a7a7a'
-                            } : {}}
-                          >
-                            {course.katilimYapildi ? 'Derse Katılındı' : 'Derse Katıl'}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="is-size-7 has-text-grey mt-1">
-                        <p className="mb-1">
-                          <span className="icon-text">
-                            <span className="icon">
-                              <i className="fas fa-user-tie"></i>
-                            </span>
-                            <span>{course.ogretmenler?.[0]}</span>
-                          </span>
-                        </p>
-                        {course.tarih && (
-                          <p className="mb-0">
+                        <div className="is-size-7 has-text-grey mt-2">
+                          <p className="mb-1">
                             <span className="icon-text">
                               <span className="icon">
-                                <i className="fas fa-clock"></i>
+                                <i className="fas fa-user-tie"></i>
                               </span>
-                              <span>
-                                {(() => {
-                                  const date = new Date(course.tarih);
-                                  date.setHours(date.getHours() - 3);
-                                  return date.toLocaleString('tr-TR', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric'
-                                  });
-                                })()}
-                              </span>
+                              <span>{course.ogretmenler?.[0]}</span>
                             </span>
                           </p>
-                        )}
+                          {course.tarih && (
+                            <p className="mb-0">
+                              <span className="icon-text">
+                                <span className="icon">
+                                  <i className="fas fa-clock"></i>
+                                </span>
+                                <span>
+                                  {(() => {
+                                    const date = new Date(course.tarih);
+                                    date.setHours(date.getHours() - 3);
+                                    return date.toLocaleString('tr-TR', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      day: '2-digit',
+                                      month: '2-digit',
+                                      year: 'numeric'
+                                    });
+                                  })()}
+                                </span>
+                              </span>
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
 
-      {/* Çıkış Butonu */}
-      <div className="has-text-centered mt-5">
+        {/* Çıkış Butonu */}
+        <div className="has-text-centered mt-5">
+          <button
+            className="button is-danger is-light"
+            onClick={onLogout}
+          >
+            <span className="icon">
+              <i className="fas fa-sign-out-alt"></i>
+            </span>
+            <span>Çıkış Yap</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Devamsızlık Takibi Butonu */}
+      <div style={{
+        position: 'fixed',
+        left: '36px',
+        bottom: '36px',
+        zIndex: 29  
+      }}>
         <button
-          className="button is-danger is-light"
-          onClick={onLogout}
+          className="button is-info is-light"
+          onClick={() => setShowAttendanceTracking(true)}
         >
           <span className="icon">
-            <i className="fas fa-sign-out-alt"></i>
+            <i className="fas fa-calendar-check"></i>
           </span>
-          <span>Çıkış Yap</span>
+          <span>Devamsızlık Takibi</span>
         </button>
       </div>
+
+      {/* Devamsızlık Takibi Modal */}
+      <AttendanceTracking 
+        isActive={showAttendanceTracking}
+        onClose={() => setShowAttendanceTracking(false)}
+        studentId={user.ogrno}
+      />
 
       {/* Doğrulama Modal */}
       <div className={`modal ${showPopup ? "is-active" : ""}`}>
