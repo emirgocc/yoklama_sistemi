@@ -10,6 +10,9 @@ const StudentPanel = ({ user, onLogout }) => {
   const [isFaceVerified, setIsFaceVerified] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
   const [showAttendanceTracking, setShowAttendanceTracking] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [countdown, setCountdown] = useState(null);
 
   const fetchActiveCourses = async () => {
     try {
@@ -55,6 +58,27 @@ const StudentPanel = ({ user, onLogout }) => {
     fetchActiveCourses();
   }, [user]);
 
+  useEffect(() => {
+    let timer;
+    if (showCodeInput && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setShowCodeInput(false);
+            setVerificationCode('');
+            setCountdown(null);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [showCodeInput, countdown]);
+
   const handleCourseSelect = (course) => {
     setSelectedCourse(course);
     setIsAuthenticated(false);
@@ -64,12 +88,66 @@ const StudentPanel = ({ user, onLogout }) => {
     setIsFaceVerified(false);
   };
 
-  const handleSmsVerification = () => {
-    setIsSmsVerified(true);
-    setAlertMessage({
-      severity: "success",
-      text: "SMS doğrulaması başarıyla tamamlandı.",
-    });
+  const handleEmailVerification = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/attendance/send-verification-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.mail
+        })
+      });
+
+      if (response.ok) {
+        setShowCodeInput(true);
+        setCountdown(300); // 5 dakika = 300 saniye
+        setAlertMessage({
+          severity: "success",
+          text: "Doğrulama kodu e-posta adresinize gönderildi."
+        });
+      } else {
+        throw new Error('E-posta gönderilemedi');
+      }
+    } catch (error) {
+      setAlertMessage({
+        severity: "error",
+        text: "E-posta gönderilirken hata oluştu: " + error.message
+      });
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/attendance/verify-email-code', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.mail,
+          code: verificationCode
+        })
+      });
+
+      if (response.ok) {
+        setIsSmsVerified(true);
+        setShowCodeInput(false);
+        setVerificationCode('');
+        setAlertMessage({
+          severity: "success",
+          text: "E-posta doğrulaması başarıyla tamamlandı."
+        });
+      } else {
+        throw new Error('Geçersiz kod');
+      }
+    } catch (error) {
+      setAlertMessage({
+        severity: "error",
+        text: "Kod doğrulanırken hata oluştu: " + error.message
+      });
+    }
   };
 
   const handleFaceVerification = () => {
@@ -286,19 +364,72 @@ const StudentPanel = ({ user, onLogout }) => {
               </h3>
               
               <div className="buttons is-flex is-flex-direction-column">
-                <button
-                  className={`button is-fullwidth ${
-                    isSmsVerified ? "is-light" : "is-info"
-                  }`}
-                  onClick={handleSmsVerification}
-                  disabled={isSmsVerified}
-                  style={isSmsVerified ? {
-                    backgroundColor: '#f5f5f5',
-                    color: '#7a7a7a'
-                  } : {}}
-                >
-                  {isSmsVerified ? "SMS Doğrulandı" : "SMS Doğrula"}
-                </button>
+                {!showCodeInput ? (
+                  <button
+                    className={`button is-fullwidth ${
+                      isSmsVerified ? "is-light" : "is-info"
+                    }`}
+                    onClick={handleEmailVerification}
+                    disabled={isSmsVerified}
+                    style={isSmsVerified ? {
+                      backgroundColor: '#f5f5f5',
+                      color: '#7a7a7a'
+                    } : {}}
+                  >
+                    {isSmsVerified ? "E-posta Doğrulandı" : "E-posta Doğrula"}
+                  </button>
+                ) : (
+                  <>
+                    <div className="field has-addons" style={{ marginBottom: '0.25rem' }}>
+                      <div className="control is-expanded">
+                        <input
+                          className="input"
+                          type="text"
+                          placeholder="Doğrulama Kodu"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value)}
+                          style={{ marginBottom: 0 }}
+                        />
+                      </div>
+                      <div className="control">
+                        <button
+                          className="button is-info"
+                          onClick={handleVerifyCode}
+                          style={{ marginBottom: 0 }}
+                        >
+                          Doğrula
+                        </button>
+                      </div>
+                    </div>
+                    <div className="has-text-centered" style={{ 
+                      opacity: 0.7,
+                      fontSize: '0.9rem',
+                      color: '#666',
+                      marginBottom: '0.15rem',
+                      marginTop: '0.15rem'
+                    }}>
+                      Kalan süre: {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                    </div>
+                    <button
+                      className="button is-text is-fullwidth"
+                      onClick={handleEmailVerification}
+                      style={{ 
+                        opacity: 0.7,
+                        fontSize: '0.9rem',
+                        color: '#666',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        padding: '0.15rem',
+                        marginTop: 0,
+                        marginBottom: 0,
+                        height: 'auto',
+                        minHeight: 'unset'
+                      }}
+                    >
+                      Kodu Tekrar Yolla
+                    </button>
+                  </>
+                )}
 
                 <button
                   className={`button is-fullwidth ${

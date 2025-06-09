@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from ..utils.db import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import ObjectId
 
 courses = Blueprint('courses', __name__)
@@ -60,8 +60,21 @@ def start_attendance():
             "tarih": datetime.now(),
             "durum": "aktif",
             "katilanlar": [],  # Derse katılan öğrenciler (öğrenci no ile)
-            "tumOgrenciler": course['ogrenciler']  # Dersi alan tüm öğrenciler (öğrenci no ile)
+            "tumOgrenciler": course['ogrenciler'],  # Dersi alan tüm öğrenciler (öğrenci no ile)
+            "isAdvanceMode": data.get('isAdvanceMode', False),
+            "duration": data.get('duration'),
+            "endTime": None
         }
+        
+        # Eğer advance mode aktifse ve süre seçilmişse, bitiş zamanını hesapla
+        if data.get('isAdvanceMode') and data.get('duration'):
+            if data['duration'] == 'manual':
+                attendance_record['duration'] = 'manual'
+            else:
+                duration_minutes = int(data['duration'])
+                end_time = datetime.now() + timedelta(minutes=duration_minutes)
+                attendance_record['endTime'] = end_time
+                attendance_record['duration'] = duration_minutes
         
         # Yoklama kaydını veritabanına ekle
         result = db.attendance.insert_one(attendance_record)
@@ -188,4 +201,40 @@ def get_active_attendance(teacher_mail):
         
     except Exception as e:
         print(f"Aktif yoklama getirme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@courses.route('/attendance/check-expired', methods=['GET'])
+def check_expired_attendance():
+    try:
+        # Süresi dolmuş yoklamaları bul
+        expired_attendance = list(db.attendance.find({
+            "durum": "aktif",
+            "isAdvanceMode": True,
+            "endTime": {"$lt": datetime.now()}
+        }))
+        
+        for attendance in expired_attendance:
+            # Yoklamayı bitir
+            db.attendance.update_one(
+                {"_id": attendance["_id"]},
+                {"$set": {"durum": "tamamlandı"}}
+            )
+            
+            # Katılmayanları hesapla
+            katilmayanlar = list(set(attendance['tumOgrenciler']) - set(attendance['katilanlar']))
+            
+            # Yoklama özetini güncelle
+            db.attendance.update_one(
+                {"_id": attendance["_id"]},
+                {"$set": {"katilmayanlar": katilmayanlar}}
+            )
+            
+            print(f"[DEBUG] Süresi dolan yoklama otomatik olarak bitirildi: {attendance['_id']}")
+        
+        return jsonify({
+            'message': f'{len(expired_attendance)} yoklama otomatik olarak bitirildi'
+        })
+        
+    except Exception as e:
+        print(f"Otomatik yoklama bitirme hatası: {e}")
         return jsonify({'error': str(e)}), 500

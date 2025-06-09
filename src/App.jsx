@@ -20,10 +20,10 @@ function App() {
     localStorage.setItem("user", JSON.stringify(userData));
     
     // Role göre state güncelleme
-    if (userData.role === "ogretmen") {
+    if (userData.role === "teacher") {
       // Öğretmen paneline yönlendir
       console.log("Öğretmen girişi yapıldı");
-    } else if (userData.role === "ogrenci") {
+    } else if (userData.role === "student") {
       // Öğrenci paneline yönlendir
       console.log("Öğrenci girişi yapıldı");
     }
@@ -38,7 +38,7 @@ function App() {
     if (!user) {
       return <Login onLogin={handleLogin} />;
     }
-    return user.role === "ogretmen" ? (
+    return user.role === "teacher" ? (
       <TeacherPanel user={user} onLogout={handleLogout} />
     ) : (
       <StudentPanel user={user} onLogout={handleLogout} />

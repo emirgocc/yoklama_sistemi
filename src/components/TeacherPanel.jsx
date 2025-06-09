@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import html2pdf from 'html2pdf.js';
+import TeacherAttendanceTracking from './TeacherAttendanceTracking';
+import AttendanceModal from './AttendanceModal';
 
 const TeacherPanel = ({ user, onLogout }) => {
   // Debug için eklenen loglar
@@ -18,16 +20,21 @@ const TeacherPanel = ({ user, onLogout }) => {
     katilimOrani: 0,
     dersAdi: ''
   });
+  const [showAttendanceTracking, setShowAttendanceTracking] = useState(false);
+  const [isAdvanceMode, setIsAdvanceMode] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(null);
+  const [startTime, setStartTime] = useState(null);
 
   useEffect(() => {
     // Öğretmenin derslerini getir
     const fetchTeacherCourses = async () => {
       try {
-        console.log("Dersler için istek atılıyor:", user.mail); // Debug log
+        console.log("Dersler için istek atılıyor:", user.mail);
         const response = await fetch(`http://localhost:5000/api/courses/teacher/${user.mail}`);
-        console.log("Backend yanıtı:", response); // Debug log
+        console.log("Backend yanıtı:", response);
         const data = await response.json();
-        console.log("Gelen dersler:", data); // Debug log
+        console.log("Gelen dersler:", data);
         
         if (response.ok) {
           setCourses(data.courses);
@@ -46,13 +53,40 @@ const TeacherPanel = ({ user, onLogout }) => {
       }
     };
 
-    if (user && user.mail) {  // user ve mail kontrolü
-      console.log("useEffect tetiklendi, user.mail:", user.mail); // Debug log
+    if (user && user.mail) {
+      console.log("useEffect tetiklendi, user.mail:", user.mail);
       fetchTeacherCourses();
     } else {
-      console.log("useEffect tetiklendi fakat user.mail yok!"); // Debug log
+      console.log("useEffect tetiklendi fakat user.mail yok!");
     }
-  }, [user?.mail]); // dependency'i user?.mail olarak güncelledik
+  }, [user?.mail]);
+
+  // Süreli yoklamaları kontrol et
+  useEffect(() => {
+    if (attendanceStarted && currentAttendanceId) {
+      const checkExpiredAttendance = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/courses/attendance/check-expired');
+          const data = await response.json();
+          
+          if (response.ok && data.message.includes('1 yoklama')) {
+            // Yoklama otomatik olarak bitti
+            setAttendanceStarted(false);
+            setCurrentAttendanceId(null);
+            setAlertMessage({
+              severity: "info",
+              text: "Yoklama süresi doldu ve otomatik olarak sonlandırıldı."
+            });
+          }
+        } catch (error) {
+          console.error('Süre kontrolü hatası:', error);
+        }
+      };
+
+      const interval = setInterval(checkExpiredAttendance, 10000); // Her 10 saniyede bir kontrol et
+      return () => clearInterval(interval);
+    }
+  }, [attendanceStarted, currentAttendanceId]);
 
   useEffect(() => {
     // Öğretmenin aktif yoklamasını kontrol et
@@ -75,6 +109,33 @@ const TeacherPanel = ({ user, onLogout }) => {
       checkActiveAttendance();
     }
   }, [user?.mail]);
+
+  // Geri sayım için useEffect
+  useEffect(() => {
+    let timer;
+    if (attendanceStarted && isAdvanceMode && selectedDuration && startTime) {
+      const endTime = new Date(startTime.getTime() + selectedDuration * 60000);
+      
+      timer = setInterval(() => {
+        const now = new Date();
+        const diff = endTime - now;
+        
+        if (diff <= 0) {
+          clearInterval(timer);
+          setRemainingTime(null);
+          return;
+        }
+        
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setRemainingTime(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [attendanceStarted, isAdvanceMode, selectedDuration, startTime]);
 
   const startOrEndAttendance = async () => {
     if (!selectedCourse) {
@@ -102,6 +163,8 @@ const TeacherPanel = ({ user, onLogout }) => {
           });
           setAttendanceStarted(false);
           setCurrentAttendanceId(null);
+          setStartTime(null);
+          setRemainingTime(null);
         } else {
           throw new Error('Yoklama bitirilemedi');
         }
@@ -114,7 +177,9 @@ const TeacherPanel = ({ user, onLogout }) => {
           },
           body: JSON.stringify({
             dersKodu: selectedCourse,
-            ogretmenMail: user.mail
+            ogretmenMail: user.mail,
+            isAdvanceMode: isAdvanceMode,
+            duration: selectedDuration
           })
         });
 
@@ -127,6 +192,7 @@ const TeacherPanel = ({ user, onLogout }) => {
           });
           setAttendanceStarted(true);
           setCurrentAttendanceId(data.attendanceId);
+          setStartTime(new Date());
         } else {
           throw new Error(data.error || 'Yoklama başlatılamadı');
         }
@@ -271,6 +337,13 @@ const TeacherPanel = ({ user, onLogout }) => {
         Hoşgeldiniz, {user.ad} {user.soyad}
       </p>
 
+      {/* Geri Sayım Göstergesi */}
+      {attendanceStarted && isAdvanceMode && remainingTime && (
+        <div className="notification is-info is-light has-text-centered mb-4">
+          <p className="title is-4">Kalan Süre: {remainingTime}</p>
+        </div>
+      )}
+
       {/* Ders Seçimi */}
       <div className="field">
         <label className="label">Ders Seç</label>
@@ -293,12 +366,61 @@ const TeacherPanel = ({ user, onLogout }) => {
         </div>
       </div>
 
+      {/* Süreli Yoklama Seçimi */}
+      {!attendanceStarted && (
+        <>
+          <div className="field">
+            <div className="control">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={isAdvanceMode}
+                  onChange={(e) => {
+                    setIsAdvanceMode(e.target.checked);
+                    if (!e.target.checked) {
+                      setSelectedDuration(null);
+                    }
+                  }}
+                />
+                {' '}Süreli Yoklama
+              </label>
+            </div>
+          </div>
+
+          {isAdvanceMode && (
+            <div className="field">
+              <div className="control">
+                <div className="columns is-mobile">
+                  <div className="column">
+                    <button
+                      className={`button is-fullwidth ${selectedDuration === 15 ? 'is-dark' : 'is-light'}`}
+                      onClick={() => setSelectedDuration(15)}
+                    >
+                      15 Dakika
+                    </button>
+                  </div>
+                  <div className="column">
+                    <button
+                      className={`button is-fullwidth ${selectedDuration === 50 ? 'is-dark' : 'is-light'}`}
+                      onClick={() => setSelectedDuration(50)}
+                    >
+                      50 Dakika
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Yoklama Kontrolleri */}
       <div className="mt-5">
         {!attendanceStarted ? (
           <button
             className="button is-primary is-fullwidth"
             onClick={startOrEndAttendance}
+            disabled={isAdvanceMode && !selectedDuration}
           >
             Yoklama Başlat
           </button>
@@ -317,10 +439,7 @@ const TeacherPanel = ({ user, onLogout }) => {
                 className="button is-info is-fullwidth"
                 onClick={handleShowAttendanceList}
               >
-                <span className="icon">
-                  <i className="fas fa-list"></i>
-                </span>
-                <span>Listeyi Gör</span>
+                Listeyi Gör
               </button>
             </div>
           </div>
@@ -340,116 +459,40 @@ const TeacherPanel = ({ user, onLogout }) => {
         </button>
       </div>
 
-      {/* Yoklama Listesi Modal */}
-      <div className={`modal ${openModal ? "is-active" : ""}`}>
-        <div className="modal-background" onClick={handleCloseModal}></div>
-        <div className="modal-card" style={{ maxWidth: '800px', width: '90%' }}>
-          <header className="modal-card-head">
-            <div className="modal-card-title">
-              <h1 className="title is-4 mb-2">{attendanceDetails.dersAdi}</h1>
-              <h2 className="subtitle is-6 has-text-grey mb-0">{selectedCourse} - Yoklama Listesi</h2>
-            </div>
-          </header>
-          
-          <section className="modal-card-body">
-            <div id="attendance-content">
-              {/* Yoklama Detayları */}
-              <div className="box mb-4">
-                <div className="columns is-mobile">
-                  <div className="column">
-                    <p className="heading">Başlangıç Zamanı</p>
-                    <p className="title is-5">
-                      {attendanceDetails.baslangicZamani?.toLocaleString('tr-TR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                  <div className="column has-text-centered">
-                    <p className="heading">Toplam Öğrenci</p>
-                    <p className="title is-5">{attendanceList.tumOgrenciler?.length || 0}</p>
-                  </div>
-                  <div className="column has-text-centered">
-                    <p className="heading">Katılan Öğrenci</p>
-                    <p className="title is-5">{attendanceList.katilanlar?.length || 0}</p>
-                  </div>
-                  <div className="column has-text-right">
-                    <p className="heading">Katılım Oranı</p>
-                    <p className="title is-5">%{attendanceDetails.katilimOrani}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Öğrenci Listesi */}
-              {!attendanceList.tumOgrenciler?.length ? (
-                <p className="has-text-centered">Henüz öğrenci kaydı yok.</p>
-              ) : (
-                <div className="content">
-                  <div className="table-container">
-                    <table className="table is-fullwidth is-hoverable">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '60px' }}>#</th>
-                          <th>Öğrenci No</th>
-                          <th>Ad Soyad</th>
-                          <th style={{ width: '150px' }}>Durum</th>
-                          <th style={{ width: '100px' }}>İşlem</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {attendanceList.tumOgrenciler.map((ogrenci, index) => {
-                          const isPresent = attendanceList.katilanlar.includes(ogrenci.ogrenciNo);
-                          return (
-                            <tr key={ogrenci.ogrenciNo}>
-                              <td>{index + 1}</td>
-                              <td>{ogrenci.ogrenciNo}</td>
-                              <td>{ogrenci.adSoyad}</td>
-                              <td>
-                                <span className={`tag ${isPresent ? 'is-success' : 'is-warning'} is-light`}>
-                                  {isPresent ? 'Katıldı' : 'Katılmadı'}
-                                </span>
-                              </td>
-                              <td>
-                                <button 
-                                  className={`button is-small ${isPresent ? 'is-light' : 'is-info'}`}
-                                  onClick={() => handleAttendanceChange(ogrenci.ogrenciNo)}
-                                  disabled={isPresent}
-                                  style={isPresent ? {
-                                    backgroundColor: '#f5f5f5',
-                                    color: '#7a7a7a'
-                                  } : {}}
-                                >
-                                  {isPresent ? 'İşaretlendi' : 'İşaretle'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-          
-          <footer className="modal-card-foot" style={{ justifyContent: 'space-between' }}>
-            <button className="button" onClick={handleCloseModal}>Kapat</button>
-            <button 
-              className="button is-info"
-              onClick={handlePdfDownload}
-            >
-              <span className="icon">
-                <i className="fas fa-file-pdf"></i>
-              </span>
-              <span>PDF İndir</span>
-            </button>
-          </footer>
-        </div>
+      {/* Devamsızlık Takibi Butonu */}
+      <div style={{
+        position: 'fixed',
+        left: '36px',
+        bottom: '36px',
+        zIndex: 29  
+      }}>
+        <button
+          className="button is-info is-light"
+          onClick={() => setShowAttendanceTracking(true)}
+        >
+          <span className="icon">
+            <i className="fas fa-calendar-check"></i>
+          </span>
+          <span>Devamsızlık Takibi</span>
+        </button>
       </div>
+
+      {/* Devamsızlık Takibi Modal */}
+      <TeacherAttendanceTracking 
+        isActive={showAttendanceTracking}
+        onClose={() => setShowAttendanceTracking(false)}
+        teacherMail={user.mail}
+      />
+
+      {/* Yoklama Listesi Modal */}
+      <AttendanceModal
+        isActive={openModal}
+        onClose={handleCloseModal}
+        attendanceDetails={attendanceDetails}
+        selectedCourse={selectedCourse}
+        attendanceList={attendanceList}
+        onAttendanceChange={handleAttendanceChange}
+      />
 
       {/* Alert Mesajı */}
       {alertMessage && (

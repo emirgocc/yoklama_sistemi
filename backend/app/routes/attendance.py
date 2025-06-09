@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from ..utils.db import db
-from datetime import datetime
+from ..utils.email_sender import generate_verification_code, send_verification_email
+from datetime import datetime, timedelta
 from bson import ObjectId
 
 attendance_routes = Blueprint('attendance', __name__)
@@ -100,4 +101,120 @@ def get_student_tracking(ogrno):
         return jsonify(tracking_data)
         
     except Exception as e:
+        return jsonify({'error': str(e)}), 500 
+
+@attendance_routes.route('/teacher-tracking/<teacher_mail>/<course_code>', methods=['GET'])
+def get_teacher_tracking(teacher_mail, course_code):
+    try:
+        print(f"[DEBUG] Öğretmen devamsızlık takibi isteği - Öğretmen: {teacher_mail}, Ders: {course_code}")
+        
+        # Önce dersi bul
+        course = db.courses.find_one({
+            "dersKodu": course_code,
+            "ogretmenler": teacher_mail
+        })
+        print(f"[DEBUG] Ders bulundu mu: {course is not None}")
+        
+        if not course:
+            print("[DEBUG] Ders bulunamadı")
+            return jsonify([])
+            
+        # Dersin tüm yoklama kayıtlarını bul
+        all_attendance = list(db.attendance.find({
+            "dersKodu": course_code,
+            "ogretmenMail": teacher_mail
+        }))
+        print(f"[DEBUG] Bulunan yoklama kayıtları: {len(all_attendance)}")
+        
+        if not all_attendance:
+            print("[DEBUG] Yoklama kaydı bulunamadı")
+            return jsonify([])
+            
+        tracking_data = []
+        
+        # Her öğrenci için devamsızlık verilerini hesapla
+        for ogrenci_no in course['ogrenciler']:
+            print(f"[DEBUG] Öğrenci işleniyor: {ogrenci_no}")
+            
+            # Öğrenci bilgilerini al
+            ogrenci = db.users.find_one({"ogrno": ogrenci_no})
+            if not ogrenci:
+                print(f"[DEBUG] Öğrenci bulunamadı: {ogrenci_no}")
+                continue
+                
+            # Öğrencinin katıldığı dersleri say
+            toplam_ders = len(all_attendance)
+            katildigi_ders = sum(1 for ders in all_attendance if ogrenci_no in ders.get('katilanlar', []))
+            katilmadigi_ders = toplam_ders - katildigi_ders
+            katilim_orani = round((katildigi_ders / toplam_ders) * 100) if toplam_ders > 0 else 0
+            
+            print(f"[DEBUG] Öğrenci {ogrenci_no} - Toplam: {toplam_ders}, Katıldı: {katildigi_ders}, Katılmadı: {katilmadigi_ders}, Oran: {katilim_orani}")
+            
+            tracking_data.append({
+                "ogrenciNo": ogrenci_no,
+                "adSoyad": f"{ogrenci['ad']} {ogrenci['soyad']}",
+                "toplamDers": toplam_ders,
+                "katildigiDers": katildigi_ders,
+                "katilmadigiDers": katilmadigi_ders,
+                "katilimOrani": katilim_orani
+            })
+        
+        print(f"[DEBUG] Toplam {len(tracking_data)} öğrenci verisi döndürülüyor")
+        return jsonify(tracking_data)
+        
+    except Exception as e:
+        print(f"[HATA] Öğretmen devamsızlık takibi hatası: {str(e)}")
+        return jsonify({'error': str(e)}), 500 
+
+@attendance_routes.route('/send-verification-email', methods=['POST'])
+def send_verification_email_route():
+    try:
+        data = request.get_json()
+        if not data or 'email' not in data:
+            return jsonify({'error': 'E-posta adresi gerekli'}), 400
+            
+        # Doğrulama kodu oluştur
+        verification_code = generate_verification_code()
+        
+        # Kodu veritabanına kaydet (5 dakika geçerli)
+        db.verification_codes.insert_one({
+            'email': data['email'],
+            'code': verification_code,
+            'created_at': datetime.now(),
+            'expires_at': datetime.now() + timedelta(minutes=5)
+        })
+        
+        # E-postayı gönder
+        if send_verification_email(data['email'], verification_code):
+            return jsonify({'message': 'Doğrulama kodu gönderildi'})
+        else:
+            return jsonify({'error': 'E-posta gönderilemedi'}), 500
+            
+    except Exception as e:
+        print(f"E-posta gönderme hatası: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@attendance_routes.route('/verify-email-code', methods=['POST'])
+def verify_email_code():
+    try:
+        data = request.get_json()
+        if not data or 'email' not in data or 'code' not in data:
+            return jsonify({'error': 'E-posta ve kod gerekli'}), 400
+            
+        # Kodu kontrol et
+        verification = db.verification_codes.find_one({
+            'email': data['email'],
+            'code': data['code'],
+            'expires_at': {'$gt': datetime.now()}
+        })
+        
+        if verification:
+            # Kullanılmış kodu sil
+            db.verification_codes.delete_one({'_id': verification['_id']})
+            return jsonify({'message': 'Kod doğrulandı'})
+        else:
+            return jsonify({'error': 'Geçersiz veya süresi dolmuş kod'}), 400
+            
+    except Exception as e:
+        print(f"Kod doğrulama hatası: {e}")
         return jsonify({'error': str(e)}), 500 
