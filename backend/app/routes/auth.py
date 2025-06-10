@@ -28,3 +28,32 @@ def login():
     except Exception as e:
         print(f"Login hatası: {e}")
         return jsonify({'error': str(e)}), 500
+
+@auth.route('/create-admin', methods=['POST'])
+def create_admin():
+    try:
+        # Güvenlik kontrolü - sadece yerel ağdan erişilebilir
+        if request.remote_addr not in ['127.0.0.1', 'localhost']:
+            return jsonify({'error': 'Bu işlem sadece yerel sunucudan yapılabilir.'}), 403
+            
+        # Admin kullanıcısı zaten var mı kontrol et
+        existing_admin = db.users.find_one({"role": "admin"})
+        if existing_admin:
+            return jsonify({'error': 'Admin kullanıcısı zaten mevcut.'}), 400
+            
+        # Admin kullanıcısı oluştur
+        admin_user = {
+            "mail": "admin@example.com",
+            "sifre": "admin123",
+            "role": "admin",
+            "ad": "Admin",
+            "soyad": "User"
+        }
+        
+        db.users.insert_one(admin_user)
+        
+        return jsonify({'message': 'Admin kullanıcısı başarıyla oluşturuldu.'})
+            
+    except Exception as e:
+        print(f"Admin oluşturma hatası: {e}")
+        return jsonify({'error': str(e)}), 500
